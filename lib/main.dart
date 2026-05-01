@@ -1,11 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 import 'package:reorderable_grid_view/reorderable_grid_view.dart';
+import 'package:video_player/video_player.dart';
+import 'package:fc_native_video_thumbnail/fc_native_video_thumbnail.dart';
+import 'package:chewie/chewie.dart';
 
 void main() {
   runApp(const MediaSorterApp());
@@ -175,26 +177,12 @@ class _MediaSorterHomeState extends State<MediaSorterHome> {
             child: Stack(
               children: [
                 Center(
-                  child: _isVideo(file)
-                      ? Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(
-                              Icons.play_circle_outline,
-                              size: 100,
-                              color: Colors.white54,
-                            ),
-                            const SizedBox(height: 16),
-                            Text(
-                              path.basename(file.path),
-                              style: const TextStyle(
-                                color: Colors.white70,
-                                fontSize: 18,
-                              ),
-                            ),
-                          ],
-                        )
-                      : Image.file(File(file.path), fit: BoxFit.contain),
+                  child: GestureDetector(
+                    onTap: () {}, // Prevent closing when tapping on content
+                    child: _isVideo(file)
+                        ? _VideoPlayerWidget(file: File(file.path))
+                        : Image.file(File(file.path), fit: BoxFit.contain),
+                  ),
                 ),
                 Positioned(
                   top: 40,
@@ -268,16 +256,7 @@ class _MediaSorterHomeState extends State<MediaSorterHome> {
                         fit: StackFit.expand,
                         children: [
                           if (isVideo)
-                            Container(
-                              color: Colors.grey.shade900,
-                              child: const Center(
-                                child: Icon(
-                                  Icons.play_arrow,
-                                  size: 48,
-                                  color: Colors.white54,
-                                ),
-                              ),
-                            )
+                            _VideoThumbnailWidget(file: File(file.path))
                           else
                             Image.file(File(file.path), fit: BoxFit.cover),
                           Positioned(
@@ -324,6 +303,119 @@ class _MediaSorterHomeState extends State<MediaSorterHome> {
               child: const Icon(Icons.check),
             )
           : null,
+    );
+  }
+}
+
+class _VideoThumbnailWidget extends StatefulWidget {
+  final File file;
+  const _VideoThumbnailWidget({super.key, required this.file});
+
+  @override
+  State<_VideoThumbnailWidget> createState() => _VideoThumbnailWidgetState();
+}
+
+class _VideoThumbnailWidgetState extends State<_VideoThumbnailWidget> {
+  Uint8List? _thumbnailData;
+
+  @override
+  void initState() {
+    super.initState();
+    _generateThumbnail();
+  }
+
+  Future<void> _generateThumbnail() async {
+    final plugin = FcNativeVideoThumbnail();
+    try {
+      final data = await plugin.saveThumbnailToBytes(
+        srcFile: widget.file.path,
+        width: 200,
+        height: 200,
+        quality: 50,
+      );
+      if (mounted && data != null) {
+        setState(() {
+          _thumbnailData = data;
+        });
+      }
+    } catch (e) {
+      debugPrint('Error generating thumbnail: $e');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_thumbnailData != null)
+          Image.memory(_thumbnailData!, fit: BoxFit.cover)
+        else
+          Container(color: Colors.grey.shade900),
+        const Center(
+          child: Icon(
+            Icons.play_circle_outline,
+            size: 48,
+            color: Colors.white70,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _VideoPlayerWidget extends StatefulWidget {
+  final File file;
+  const _VideoPlayerWidget({super.key, required this.file});
+
+  @override
+  State<_VideoPlayerWidget> createState() => _VideoPlayerWidgetState();
+}
+
+class _VideoPlayerWidgetState extends State<_VideoPlayerWidget> {
+  late VideoPlayerController _videoPlayerController;
+  ChewieController? _chewieController;
+  bool _initialized = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializePlayer();
+  }
+
+  Future<void> _initializePlayer() async {
+    _videoPlayerController = VideoPlayerController.file(widget.file);
+    await _videoPlayerController.initialize();
+
+    _chewieController = ChewieController(
+      videoPlayerController: _videoPlayerController,
+      autoPlay: true,
+      looping: true,
+      aspectRatio: _videoPlayerController.value.aspectRatio,
+    );
+
+    if (mounted) {
+      setState(() {
+        _initialized = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _videoPlayerController.dispose();
+    _chewieController?.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_initialized || _chewieController == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return AspectRatio(
+      aspectRatio: _videoPlayerController.value.aspectRatio,
+      child: Chewie(controller: _chewieController!),
     );
   }
 }

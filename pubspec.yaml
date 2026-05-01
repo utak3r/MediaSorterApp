@@ -38,6 +38,11 @@ dependencies:
   reorderable_grid_view: ^2.2.8
   path: ^1.9.1
   collection: ^1.19.1
+  video_thumbnail: ^0.5.6
+  video_player: ^2.11.1
+  video_player_win: ^3.2.2
+  fc_native_video_thumbnail: ^2.1.1
+  chewie: ^1.13.1
 
 dev_dependencies:
   flutter_test:
