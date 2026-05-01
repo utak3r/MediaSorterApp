@@ -6,7 +6,7 @@ This application was born out of my frustration trying to make an ordered list o
 With this app, you can open a folder and see all of the images and videos in this folder - and then drag and drop them, changing their order. Upon saving, it is doing two things: 
 
 - saves a json file with the order of the files,
-- copies to a system clipboard a an ordered list of filenames, ready to be pasted somewhere (for example, to a gallery code).
+- copies to a system clipboard an ordered list of filenames, ready to be pasted somewhere (for example, to a gallery code).
 
 ![screenshot](./screenshot.jpg)
 
@@ -18,7 +18,11 @@ flutter run -d windows
 ```
 
 To build a release version for windows, run
-
 ```bash
 flutter build windows
+```
+
+To build a MSIX package for Windows, run
+```bash
+dart run msix:create
 ```
